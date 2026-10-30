@@ -89,42 +89,22 @@
   </main>
 </template>
 
-<script>
+<script setup>
+import { onMounted, ref } from 'vue'
 import { useLoggedInUserStore } from './store/loggedInUser'
 import { getOrgName } from './api/api'
-import { useToast } from 'vue-toastification'
 
-//Notifications
-const toast = useToast()
+// The Composition API keeps app-level organization and session state explicit.
+const user = useLoggedInUserStore()
+const orgName = ref('Dataplatform')
 
-export default {
-  setup() {
-    const user = useLoggedInUserStore();
-    return { user };
-  },
-  data() {
-    return {
-      orgName: "Dataplatform",
-    };
-  },
-  async created() {
-    try {
-      this.orgName = await getOrgName();
-    } catch {
-      throw (error)
-    }
-  },
-  methods: {
-    logout() {
-      try {
-        this.$store.dispatch('clearSessionData');
-        this.$router.push('/')
-      } catch (error) {
-        toast.error('logout error', error)
-      }
-    },
+onMounted(async () => {
+  try {
+    orgName.value = await getOrgName()
+  } catch (error) {
+    console.error('Unable to load organization name:', error)
   }
-}
+})
 </script>
 
 <style scoped>

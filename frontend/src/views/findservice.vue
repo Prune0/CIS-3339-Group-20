@@ -69,7 +69,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-300">
-            <tr @click="$router.push({name: 'servicedetails', params: { id: service._id } })" 
+            <tr @click="router.push({ name: 'servicedetails', params: { id: service._id } })"
             v-for="service in services" :key="service._id" class="cursor-pointer"
               :class="{ 'hoverRow': hoverId === service._id }" @mouseenter="hoverId = service._id"
               @mouseleave="hoverId = null">
@@ -83,79 +83,54 @@
   </main>
 </template>
 
-<script>
+<script setup>
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { getServices, searchServices } from '../api/api'
 import { useToast } from 'vue-toastification'
 
-//Notifications
 const toast = useToast()
+const router = useRouter()
 
-export default {
-  data() {
-    return {
-      //variable to hold the services for the organization
-      services: null,
-      // Parameters for search to occur
-      searchBy: null,
-      name: null,
-      description: null,
-      // variable stores the ID of the row that the mouse is currently hovering over (to highlight the row red)
-      hoverId: null,
-    }
-  },
-  mounted() {
-    // when component is mounted, load the data
-    this.loadData();
-  },
-  methods: {
-    // method called when component is mounted
-    async loadData() {
-      // Resets all the variables
-      this.searchBy = ''
-      this.name = ''
-      this.description = ''
+// Refs and lifecycle hooks replace the list view's Options API state and hooks.
+const services = ref(null)
+const searchBy = ref(null)
+const name = ref(null)
+const description = ref(null)
+const hoverId = ref(null)
 
-      // get list of services
-      try {
-        const response = await getServices();
-        this.services = response;
-      } catch (error) {
-        toast.error(error)
-      }
-    },
-
-    // method called when user searches for a service
-    async handleSubmitForm() {
-      // if user searches by service name
-      if (this.searchBy === 'Service Name') {
-        if (this.name) {
-          try {
-            const query = {
-              searchBy: 'name',
-              name: this.name
-            }
-            const response = await searchServices(query)
-            this.services = response;
-          } catch (error) {
-            toast.error(error)
-          }
-        }
-        // if user searches by service description
-      } else if (this.searchBy === 'Service Description') {
-        if (this.description) {
-          try {
-            const query = {
-              searchBy: 'description',
-              description: this.description
-            }
-            const response = await searchServices(query)
-            this.services = response;
-          } catch (error) {
-            toast.error('Error searching services:', error)
-          }
-        }
-      }
-    },
-  },
+async function loadData() {
+  searchBy.value = ''
+  name.value = ''
+  description.value = ''
+  try {
+    services.value = await getServices()
+  } catch (error) {
+    toast.error(error)
+  }
 }
+
+async function handleSubmitForm() {
+  if (searchBy.value === 'Service Name' && name.value) {
+    try {
+      services.value = await searchServices({
+        searchBy: 'name',
+        name: name.value
+      })
+    } catch (error) {
+      toast.error(error)
+    }
+  } else if (searchBy.value === 'Service Description' && description.value) {
+    try {
+      services.value = await searchServices({
+        searchBy: 'description',
+        description: description.value
+      })
+    } catch (error) {
+      toast.error('Error searching services:', error)
+    }
+  }
+}
+
+onMounted(loadData)
 </script>
