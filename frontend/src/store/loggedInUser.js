@@ -1,7 +1,7 @@
 // This pinia store contains state with respect to whether a user is logged in 
 import { defineStore } from 'pinia'
 import { useToast } from 'vue-toastification'
-import { loginUser, logoutUser } from '../api/api' // import API calls
+import { loginUser, logoutUser, restoreAuthSession } from '../api/api' // import API calls
 import jwt_decode from 'jwt-decode'; // import JSON Web Token decoder to decode the token into the user's information
 
 //Notifications
@@ -18,6 +18,30 @@ export const useLoggedInUserStore = defineStore({
     }
   },
   actions: {
+    restoreSession() {
+      const decodedToken = restoreAuthSession();
+      if (!decodedToken) {
+        this.clearSessionState();
+        return;
+      }
+
+      this.$patch({
+        isLoggedIn: true,
+        role: decodedToken.role,
+        name: decodedToken.name || ''
+      });
+    },
+    clearSessionState() {
+      this.$patch({
+        name: "",
+        role: "",
+        isLoggedIn: false
+      });
+    },
+    clearSession() {
+      logoutUser();
+      this.clearSessionState();
+    },
     async login(username, password) {
       try {
         const token = await loginUser(username, password);
@@ -36,13 +60,7 @@ export const useLoggedInUserStore = defineStore({
       }
     },
     logout() {
-      logoutUser();
-      // Reset value after user log out
-      this.$patch({
-        name: "",
-        role: "",
-        isLoggedIn: false
-      });
+      this.clearSession();
       this.$router.push("/");
       toast.info("You have been logged out!")
     }

@@ -7,6 +7,8 @@ import Toast from "vue-toastification";
 import "vue-toastification/dist/index.css";
 //state management library
 import { createPinia } from 'pinia'
+import { useLoggedInUserStore } from './store/loggedInUser'
+import { setupAuthInterceptor } from './api/api'
 
 const app = createApp(App);
 
@@ -19,6 +21,17 @@ pinia.use(({ store }) => {
 
 //add pinia object to our instance
 app.use(pinia)
+
+const loggedInUser = useLoggedInUserStore(pinia)
+loggedInUser.restoreSession()
+
+setupAuthInterceptor(() => {
+  loggedInUser.clearSession()
+  if (router.currentRoute.value.name !== 'login') {
+    router.push({ name: 'login' })
+  }
+})
+
 app.use(router);
 
 const options = {

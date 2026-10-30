@@ -1,6 +1,7 @@
 // This file contains all API calls to the API endpoints
 // import axios to make API calls
 import axios from "axios";
+import jwt_decode from "jwt-decode";
 
 // Create HTTP client with the base URL, and specify that the data sent in the request body is JSON
 const apiClient = axios.create({
@@ -19,6 +20,48 @@ function setAuthHeader(token) {
 // When user logs out, this function removes the Authorization header from apiClient
 function removeAuthHeader() {
   delete apiClient.defaults.headers.common["Authorization"];
+}
+
+export function restoreAuthSession() {
+  const token = localStorage.getItem("authToken");
+  if (!token) {
+    removeAuthHeader();
+    return null;
+  }
+
+  try {
+    const decodedToken = jwt_decode(token);
+    if (
+      typeof decodedToken.exp !== "number" ||
+      decodedToken.exp <= Date.now() / 1000 ||
+      typeof decodedToken.role !== "string"
+    ) {
+      throw new Error("Stored token is expired or invalid");
+    }
+
+    setAuthHeader(token);
+    return decodedToken;
+  } catch {
+    logoutUser();
+    return null;
+  }
+}
+
+export function setupAuthInterceptor(onUnauthorized) {
+  apiClient.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (error.response && error.response.status === 401) {
+        const responseData = error.response.data;
+        if (responseData && typeof responseData.message === "string") {
+          error.response.data = responseData.message;
+        }
+        logoutUser();
+        onUnauthorized();
+      }
+      return Promise.reject(error);
+    }
+  );
 }
 
 // parsing out error messages from API calls see https://stackoverflow.com/questions/67089014/how-to-read-error-messages-from-javascript-error-object
@@ -47,7 +90,7 @@ export async function loginUser(username, password) {
     setAuthHeader(token);
     return token;
   } catch (error) {
-    if (error.response.status === 400) {
+    if (error.response && error.response.status === 400) {
       let errorString = getErrorMessageFromResponseBody(
         error.response.data.message
       );
