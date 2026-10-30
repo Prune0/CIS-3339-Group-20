@@ -10,6 +10,37 @@ const apiClient = axios.create({
   },
 });
 
+let unauthorizedHandler = null;
+
+export function setUnauthorizedHandler(handler) {
+  unauthorizedHandler = handler;
+}
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error.response?.status;
+    const body = error.response?.data;
+    const serverMessage = typeof body === "string"
+      ? body
+      : body?.error || body?.message || body?.errors?.[0]?.msg;
+
+    error.message = !error.response
+      ? "Unable to reach the server"
+      : typeof serverMessage === "string" && serverMessage.trim()
+        ? serverMessage
+        : `Request failed (${status})`;
+
+    if (status === 401) {
+      localStorage.removeItem("authToken");
+      removeAuthHeader();
+      unauthorizedHandler?.();
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 // Login related API calls
 // If user logs in successfully, this login sets a header to "apiClient" called "Authorization" with the value of "Bearer <token>" This security token is used to validate API calls
 function setAuthHeader(token) {
@@ -21,39 +52,16 @@ function removeAuthHeader() {
   delete apiClient.defaults.headers.common["Authorization"];
 }
 
-// parsing out error messages from API calls see https://stackoverflow.com/questions/67089014/how-to-read-error-messages-from-javascript-error-object
-function getErrorMessageFromResponseBody(string) {
-  let errorString = string;
-
-  try {
-    let json = JSON.parse(string);
-    if (json.errors) {
-      errorString = json.errors[0].msg;
-    }
-  } catch (parseOrAccessError) {}
-
-  return errorString;
-}
-
 // API call to log the user in
 export async function loginUser(username, password) {
-  try {
-    const response = await apiClient.post("/users/login", {
-      username,
-      password,
-    });
-    const token = response.data.token;
-    localStorage.setItem("authToken", token);
-    setAuthHeader(token);
-    return token;
-  } catch (error) {
-    if (error.response.status === 400) {
-      let errorString = getErrorMessageFromResponseBody(
-        error.response.data.message
-      );
-      throw new Error(errorString); // API errors get thrown here
-    } else throw error;
-  }
+  const response = await apiClient.post("/users/login", {
+    username,
+    password,
+  });
+  const token = response.data.token;
+  localStorage.setItem("authToken", token);
+  setAuthHeader(token);
+  return token;
 }
 
 // API call to log the user out
@@ -214,7 +222,7 @@ export const deleteEvent = async (id) => {
     const response = await apiClient.delete(`/events/${id}`);
     return response.data;
   } catch (error) {
-    throw error.response.data;
+    throw error;
   }
 };
 
@@ -235,7 +243,7 @@ export const getClients = async () => {
     const response = await apiClient.get("clients");
     return response.data;
   } catch (error) {
-    throw error.response.data;
+    throw error;
   }
 };
 
@@ -245,7 +253,7 @@ export const getClientById = async (id) => {
     const response = await apiClient.get(`/clients/id/${id}`);
     return response.data;
   } catch (error) {
-    throw error.response.data;
+    throw error;
   }
 };
 
@@ -266,7 +274,7 @@ export const searchClients = async (query) => {
     });
     return response.data;
   } catch (error) {
-    throw error.response.data;
+    throw error;
   }
 };
 
@@ -276,7 +284,7 @@ export const createClient = async (newClient) => {
     const response = await apiClient.post("/clients", newClient);
     return response.data;
   } catch (error) {
-    throw error.response.data;
+    throw error;
   }
 };
 
@@ -289,7 +297,7 @@ export const updateClient = async (id, updatedClient) => {
     );
     return response.data;
   } catch (error) {
-    throw error.response.data;
+    throw error;
   }
 };
 
@@ -299,7 +307,7 @@ export const deleteClientbyId = async (id) => {
     const response = await apiClient.delete(`/clients/${id}`);
     return response.data;
   } catch (error) {
-    throw error.response.data;
+    throw error;
   }
 };
 
@@ -309,7 +317,7 @@ export const getClientsByZipCode = async () => {
     const response = await apiClient.get("/clients/byzip");
     return response.data;
   } catch (error) {
-    throw error.response.data;
+    throw error;
   }
 };
 
@@ -320,7 +328,7 @@ export const getServices = async () => {
     const response = await apiClient.get("/services/");
     return response.data;
   } catch (error) {
-    throw error.response.data;
+    throw error;
   }
 };
 
@@ -330,7 +338,7 @@ export const getServiceById = async (id) => {
     const response = await apiClient.get(`/services/id/${id}`);
     return response.data;
   } catch (error) {
-    throw error.response.data;
+    throw error;
   }
 };
 
@@ -349,7 +357,7 @@ export const searchServices = async (query) => {
     });
     return response.data;
   } catch (error) {
-    throw error.response.data;
+    throw error;
   }
 };
 
@@ -359,7 +367,7 @@ export const createService = async (newService) => {
     const response = await apiClient.post("/services", newService);
     return response.data;
   } catch (error) {
-    throw error.response.data;
+    throw error;
   }
 };
 
@@ -372,7 +380,7 @@ export const updateService = async (id, updatedService) => {
     );
     return response.data;
   } catch (error) {
-    throw error.response.data;
+    throw error;
   }
 };
 
@@ -382,6 +390,6 @@ export const deleteService = async (id) => {
     const response = await apiClient.delete(`/services/${id}`);
     return response.data;
   } catch (error) {
-    throw error.response.data;
+    throw error;
   }
 };

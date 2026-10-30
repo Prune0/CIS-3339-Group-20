@@ -67,7 +67,17 @@
         <h3 class="italic">Click table row to view client details</h3>
       </div>
       <!--Table showing list of Clients-->
-      <div class="flex flex-col col-span-2">
+      <div v-if="loading" class="col-span-2 border-l-4 border-red-700 bg-red-50 p-5 text-red-900" role="status">
+        Loading client records...
+      </div>
+      <div v-else-if="error" class="col-span-2 border-l-4 border-red-700 bg-red-50 p-5 text-red-900" role="alert">
+        <p>Clients could not be loaded: {{ error }}</p>
+        <button class="mt-3 rounded bg-red-700 px-4 py-2 text-white" @click="execute()">Retry</button>
+      </div>
+      <div v-else-if="!clients.length" class="col-span-2 border border-gray-300 p-5 text-gray-700">
+        No clients match your search.
+      </div>
+      <div v-else class="flex flex-col col-span-2">
         <table class="min-w-full shadow-md rounded">
           <thead class="bg-gray-50 text-xl">
             <tr>
@@ -97,16 +107,19 @@
 
 <script>
 import { getClients, searchClients } from '../api/api'
-import { useToast } from 'vue-toastification'
-
-//Notifications
-const toast = useToast()
+import { computed } from 'vue'
+import { useApi } from '../composables/useApi'
 
 export default {
+  setup() {
+    const request = useApi(() => getClients())
+    return {
+      ...request,
+      clients: computed(() => request.data.value ?? [])
+    }
+  },
   data() {
     return {
-      //variable to store all clients and their information for the organization
-      clients: null,
       // Parameters for search to occur
       searchBy: '',
       firstName: '',
@@ -130,43 +143,28 @@ export default {
       this.phoneNumber = ''
 
       // get list of clients
-      try {
-        const response = await getClients();
-        this.clients = response;
-      } catch (error) {
-        toast.error(error)
-      }
+      await this.execute()
     },
     // method called when user searches for clients
     async handleSubmitForm() {
       // if user searched by client name
       if (this.searchBy === 'Client Name') {
         if (this.firstName || this.lastName) {
-          try {
-            const query = {
-              searchBy: 'name',
-              firstName: this.firstName,
-              lastName: this.lastName,
-            }
-            const response = await searchClients(query)
-            this.clients = response;
-          } catch (error) {
-            toast.error(error)
+          const query = {
+            searchBy: 'name',
+            firstName: this.firstName,
+            lastName: this.lastName,
           }
+          await this.execute(() => searchClients(query))
         }
         // if user searches by client phone number
       } else if (this.searchBy === 'Client Number') {
         if (this.phoneNumber) {
-          try {
-            const query = {
-              searchBy: 'number',
-              phoneNumber: this.phoneNumber
-            }
-            const response = await searchClients(query)
-            this.clients = response;
-          } catch (error) {
-            toast.error(error)
+          const query = {
+            searchBy: 'number',
+            phoneNumber: this.phoneNumber
           }
+          await this.execute(() => searchClients(query))
         }
       }
     },

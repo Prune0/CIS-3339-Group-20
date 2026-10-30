@@ -13,8 +13,13 @@
               Events Attendance
           </h1>
       
-          <div v-if="!recentEvents.length" class="flex justify-center mt-10">No events found.</div>
-          <table v-if="recentEvents.length" class="min-w-full shadow-md rounded">
+          <div v-if="loading" class="mt-8 border-l-4 border-red-700 bg-red-50 p-4" role="status">Loading attendance data...</div>
+          <div v-else-if="error" class="mt-8 border-l-4 border-red-700 bg-red-50 p-4 text-red-900" role="alert">
+            <p>Attendance data could not be loaded: {{ error }}</p>
+            <button class="mt-3 rounded bg-red-700 px-4 py-2 text-white" @click="executeAttendance()">Retry attendance</button>
+          </div>
+          <div v-else-if="!recentEvents.length" class="flex justify-center mt-10">No events found.</div>
+          <table v-else class="min-w-full shadow-md rounded">
             <thead class="bg-gray-50 text-xl">
               <tr class="p-4 text-left">
                 <th class="p-4 text-left">Event Name</th>
@@ -35,34 +40,11 @@
             </tbody>
           </table>
           
-          <div v-if="recentEvents.length">
-            <AttendanceChart
-              v-if="!loading && !error"
-              :label="labels"
-              :chart-data="chartData"
-            ></AttendanceChart>
-
-            <!-- Start of loading animation -->
-            <div class="mt-40" v-if="loading">
-              <p
-                class="text-6xl font-bold text-center text-gray-500 animate-pulse"
-              >
-                Loading...
-              </p>
-            </div>
-            <!-- End of loading animation -->
-
-            <!-- Start of error alert -->
-            <div class="mt-12 bg-red-50" v-if="error">
-              <h3 class="px-4 py-1 text-4xl font-bold text-white bg-red-800">
-                {{ error.title }}
-              </h3>
-              <p class="p-4 text-lg font-bold text-red-900">
-                {{ error.message }}
-              </p>
-            </div>
-            <!-- End of error alert -->
-          </div>
+          <AttendanceChart
+            v-if="!loading && !error && recentEvents.length"
+            :label="labels"
+            :chart-data="chartData"
+          ></AttendanceChart>
         </div>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
@@ -72,8 +54,13 @@
               Clients by Zip Code
           </h1>
           
-          <div v-if="!zips.length" class="flex justify-center mt-10">No clients found.</div>
-          <table v-if="zips.length" class="min-w-full shadow-md rounded">
+          <div v-if="zipLoading" class="mt-8 border-b-4 border-sky-700 bg-sky-50 p-4" role="status">Counting clients by ZIP code...</div>
+          <div v-else-if="zipError" class="mt-8 border-b-4 border-sky-700 bg-sky-50 p-4 text-sky-950" role="alert">
+            <p>ZIP code totals could not be loaded: {{ zipError }}</p>
+            <button class="mt-3 rounded bg-sky-800 px-4 py-2 text-white" @click="executeZip()">Retry ZIP data</button>
+          </div>
+          <div v-else-if="!zips.length" class="flex justify-center mt-10">No clients found.</div>
+          <table v-else class="min-w-full shadow-md rounded">
             <thead class="bg-gray-50 text-xl">
               <tr class="p-4 text-left">
                 <th class="p-4 text-left">Zip Number</th>
@@ -90,33 +77,8 @@
               </tr>
             </tbody>
           </table>
-          <div v-if="zips.length" class="flex justify-center mt-10">
-            <ZipChart
-              v-if="!zipLoading && !zipError"
-              :label="zipLabels"
-              :chart-data="zipChartData"
-            ></ZipChart>
-
-            <!-- Start of loading animation -->
-            <div class="mt-40" v-if="zipLoading">
-              <p
-                class="text-6xl font-bold text-center text-gray-500 animate-pulse"
-              >
-                Loading...
-              </p>
-            </div>
-            <!-- End of loading animation -->
-
-            <!-- Start of error alert -->
-            <div class="mt-12 bg-red-50" v-if="zipError">
-              <h3 class="px-4 py-1 text-4xl font-bold text-white bg-red-800">
-                {{ zipError.title }}
-              </h3>
-              <p class="p-4 text-lg font-bold text-red-900">
-                {{ zipError.message }}
-              </p>
-            </div>
-            <!-- End of error alert -->
+          <div v-if="!zipLoading && !zipError && zips.length" class="flex justify-center mt-10">
+            <ZipChart :label="zipLabels" :chart-data="zipChartData"></ZipChart>
           </div>
         </div>
       </div>
@@ -128,97 +90,53 @@
 import AttendanceChart from '../components/barChart.vue'
 import ZipChart from '../components/donutZipChart.vue'
 import { getAttendance, getClientsByZipCode } from '../api/api'
+import { useApi } from '../composables/useApi'
 
 export default {
+  setup() {
+    const attendanceRequest = useApi(getAttendance)
+    const zipRequest = useApi(getClientsByZipCode)
+
+    return {
+      attendanceData: attendanceRequest.data,
+      loading: attendanceRequest.loading,
+      error: attendanceRequest.error,
+      executeAttendance: attendanceRequest.execute,
+      zipData: zipRequest.data,
+      zipLoading: zipRequest.loading,
+      zipError: zipRequest.error,
+      executeZip: zipRequest.execute
+    }
+  },
   components: {
     AttendanceChart,
     ZipChart,
   },
-  data() {
-    return {
-      recentEvents: [],
-      zips: [],
-      labels: [],
-      chartData: [],
-      zipLabels: [],
-      zipChartData: [],
-      loading: false,
-      error: null,
-      zipLoading: false,
-      zipError: null
+  mounted() {
+    this.executeAttendance()
+    this.executeZip()
+  },
+  computed: {
+    recentEvents() {
+      return this.attendanceData ?? []
+    },
+    zips() {
+      return this.zipData ?? []
+    },
+    labels() {
+      return this.recentEvents.map((item) => `${item.name} (${this.formatDate(item.date)})`)
+    },
+    chartData() {
+      return this.recentEvents.map((item) => item.attendees.length)
+    },
+    zipLabels() {
+      return this.zips.map((item) => item._id)
+    },
+    zipChartData() {
+      return this.zips.map((item) => item.count)
     }
   },
-  mounted() {
-    this.getAttendanceData()
-    this.getZipData()
-  },
   methods: {
-    async getAttendanceData() {
-      try {
-        this.error = null
-        this.loading = true
-        
-        const attendance = await getAttendance();
-        this.recentEvents = attendance;
-        this.labels = attendance.map(
-          (item) => `${item.name} (${this.formatDate(item.date)})`
-        )
-        this.chartData = attendance.map((item) => item.attendees.length)
-      } catch (err) {
-        if (err.response) {
-          // client received an error response (5xx, 4xx)
-          this.error = {
-            title: 'Server Response',
-            message: err.message
-          }
-        } else if (err.request) {
-          // client never received a response, or request never left
-          this.error = {
-            title: 'Unable to Reach Server',
-            message: err.message
-          }
-        } else {
-          // There's probably an error in your code
-          this.error = {
-            title: 'Application Error',
-            message: err.message
-          }
-        }
-      }
-      this.loading = false
-    },
-    async getZipData() {
-      try {
-        this.zipError = null
-        this.zipLoading = true
-        
-        const zipdata = await getClientsByZipCode();
-        this.zips = zipdata;
-        this.zipLabels = zipdata.map((item) => item._id)
-        this.zipChartData = zipdata.map((item) => item.count)
-      } catch (err) {
-        if (err.response) {
-          // client received an error response (5xx, 4xx)
-          this.zipError = {
-            title: 'Server Response',
-            message: err.message
-          }
-        } else if (err.request) {
-          // client never received a response, or request never left
-          this.zipError = {
-            title: 'Unable to Reach Server',
-            message: err.message
-          }
-        } else {
-          // There's probably an error in your code
-          this.zipError = {
-            title: 'Application Error',
-            message: err.message
-          }
-        }
-      }
-      this.zipLoading = false
-    },
     // method called to format the event date
     formatDate(date) {
       const isoDate = new Date(date);

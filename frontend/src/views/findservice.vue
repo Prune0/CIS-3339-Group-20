@@ -60,7 +60,17 @@
         <h2 class="text-2xl font-bold">List of Services</h2>
         <h3 class="italic">Click table row to view service details</h3>
       </div>
-      <div class="flex flex-col col-span-2">
+      <div v-if="loading" class="col-span-2 rounded-sm bg-emerald-50 p-5 text-emerald-950" role="status">
+        Loading organization services...
+      </div>
+      <div v-else-if="error" class="col-span-2 rounded-sm bg-rose-100 p-5 text-rose-950" role="alert">
+        <p>Service records are unavailable: {{ error }}</p>
+        <button class="mt-3 rounded bg-rose-800 px-4 py-2 text-white" @click="execute()">Reload services</button>
+      </div>
+      <div v-else-if="!services.length" class="col-span-2 border-b-2 border-emerald-700 p-5 text-emerald-950">
+        No services are available for this search.
+      </div>
+      <div v-else class="flex flex-col col-span-2">
         <table class="min-w-full shadow-md rounded">
           <thead class="bg-gray-50 text-xl">
             <tr>
@@ -85,16 +95,19 @@
 
 <script>
 import { getServices, searchServices } from '../api/api'
-import { useToast } from 'vue-toastification'
-
-//Notifications
-const toast = useToast()
+import { computed } from 'vue'
+import { useApi } from '../composables/useApi'
 
 export default {
+  setup() {
+    const request = useApi(() => getServices())
+    return {
+      ...request,
+      services: computed(() => request.data.value ?? [])
+    }
+  },
   data() {
     return {
-      //variable to hold the services for the organization
-      services: null,
       // Parameters for search to occur
       searchBy: null,
       name: null,
@@ -116,12 +129,7 @@ export default {
       this.description = ''
 
       // get list of services
-      try {
-        const response = await getServices();
-        this.services = response;
-      } catch (error) {
-        toast.error(error)
-      }
+      await this.execute()
     },
 
     // method called when user searches for a service
@@ -129,30 +137,20 @@ export default {
       // if user searches by service name
       if (this.searchBy === 'Service Name') {
         if (this.name) {
-          try {
-            const query = {
-              searchBy: 'name',
-              name: this.name
-            }
-            const response = await searchServices(query)
-            this.services = response;
-          } catch (error) {
-            toast.error(error)
+          const query = {
+            searchBy: 'name',
+            name: this.name
           }
+          await this.execute(() => searchServices(query))
         }
         // if user searches by service description
       } else if (this.searchBy === 'Service Description') {
         if (this.description) {
-          try {
-            const query = {
-              searchBy: 'description',
-              description: this.description
-            }
-            const response = await searchServices(query)
-            this.services = response;
-          } catch (error) {
-            toast.error('Error searching services:', error)
+          const query = {
+            searchBy: 'description',
+            description: this.description
           }
+          await this.execute(() => searchServices(query))
         }
       }
     },

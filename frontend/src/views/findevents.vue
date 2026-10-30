@@ -58,7 +58,17 @@
         <h2 class="text-2xl font-bold">List of Events</h2>
         <h3 class="italic">Click table row to view event details</h3>
       </div>
-      <div class="flex flex-col col-span-2">
+      <div v-if="loading" class="col-span-2 border-t-4 border-amber-500 bg-amber-50 p-5 text-amber-950" role="status">
+        Fetching the event calendar...
+      </div>
+      <div v-else-if="error" class="col-span-2 border-t-4 border-amber-700 bg-amber-50 p-5 text-amber-950" role="alert">
+        <p>Event search failed: {{ error }}</p>
+        <button class="mt-3 rounded bg-amber-700 px-4 py-2 text-white" @click="execute()">Try again</button>
+      </div>
+      <div v-else-if="!events.length" class="col-span-2 border-dashed border-2 border-amber-300 p-5 text-amber-900">
+        No events match the selected search.
+      </div>
+      <div v-else class="flex flex-col col-span-2">
         <table class="min-w-full shadow-md rounded">
           <thead class="bg-gray-50 text-xl">
             <tr>
@@ -85,16 +95,19 @@
 
 <script>
 import { getEvents, searchEvents } from '../api/api'
-import { useToast } from 'vue-toastification'
-
-//Notifications
-const toast = useToast()
+import { computed } from 'vue'
+import { useApi } from '../composables/useApi'
 
 export default {
+  setup() {
+    const request = useApi(() => getEvents())
+    return {
+      ...request,
+      events: computed(() => request.data.value ?? [])
+    }
+  },
   data() {
     return {
-      //variable to hold all events for the organization
-      events: null,
       // Parameters for search to occur
       searchBy: null,
       name: null,
@@ -115,15 +128,7 @@ export default {
       this.name = null
       this.eventDate = null
 
-      // show loading wheel
-      this.isLoading = true;
-      // get list of events
-      try {
-        const response = await getEvents();
-        this.events = response;
-      } catch (error) {
-        toast.error('loadData error', error)
-      }
+      await this.execute()
     },
 
     // method called when user searches for an event
@@ -131,32 +136,22 @@ export default {
       // if user searches by event name
       if (this.searchBy === 'Event Name') {
         if (this.name) {
-          try {
-            const query = {
-              searchBy: 'name',
-              name: this.name
-            };
-            const response = await searchEvents(query);
-            this.events = response;
-          } catch (error) {
-            toast.error('Error searching events', error)
-          }
+          const query = {
+            searchBy: 'name',
+            name: this.name
+          };
+          await this.execute(() => searchEvents(query))
         }
         // if user searches by event date
       } else if (this.searchBy === 'Event Date') {
         if (this.eventDate) {
-          try {
-            const eventDate = new Date(this.eventDate);
-            const formattedDate = eventDate.toISOString().substring(0, 10);
-            const query = {
-              searchBy: 'date',
-              eventDate: formattedDate
-            };
-            const response = await searchEvents(query);
-            this.events = response;
-          } catch (error) {
-            toast.error('Error searching events:', error)
-          }
+          const eventDate = new Date(this.eventDate);
+          const formattedDate = eventDate.toISOString().substring(0, 10);
+          const query = {
+            searchBy: 'date',
+            eventDate: formattedDate
+          };
+          await this.execute(() => searchEvents(query))
         }
       }
     },

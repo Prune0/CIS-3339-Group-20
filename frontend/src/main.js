@@ -7,6 +7,8 @@ import Toast from "vue-toastification";
 import "vue-toastification/dist/index.css";
 //state management library
 import { createPinia } from 'pinia'
+import { useLoggedInUserStore } from './store/loggedInUser'
+import { setUnauthorizedHandler } from './api/api'
 
 const app = createApp(App);
 
@@ -15,6 +17,11 @@ const pinia = createPinia();
 //pinia should be able to use router - has to be setup as plugin
 pinia.use(({ store }) => {
   store.$router = markRaw(router)
+});
+
+setUnauthorizedHandler(() => {
+  useLoggedInUserStore(pinia).clearSession();
+  router.replace('/login');
 });
 
 //add pinia object to our instance

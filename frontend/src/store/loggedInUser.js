@@ -38,13 +38,16 @@ export const useLoggedInUserStore = defineStore({
     logout() {
       logoutUser();
       // Reset value after user log out
+      this.clearSession();
+      this.$router.push("/");
+      toast.info("You have been logged out!")
+    },
+    clearSession() {
       this.$patch({
         name: "",
         role: "",
         isLoggedIn: false
       });
-      this.$router.push("/");
-      toast.info("You have been logged out!")
     }
   },
 });
