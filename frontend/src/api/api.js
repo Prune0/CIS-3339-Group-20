@@ -35,9 +35,13 @@ apiClient.interceptors.response.use(
 
     error.message = !error.response
       ? "Unable to reach the server"
-      : typeof serverMessage === "string" && serverMessage.trim()
-        ? serverMessage
-        : `Request failed (${status})`;
+      : status === 403
+        // S1: the backend's requireRole('editor') rejects viewers with 403.
+        // Always show the same clear message, whatever the server's wording.
+        ? "You don't have permission to do that. Editor access is required."
+        : typeof serverMessage === "string" && serverMessage.trim()
+          ? serverMessage
+          : `Request failed (${status})`;
 
     if (status === 401) {
       localStorage.removeItem("authToken");
@@ -211,6 +215,24 @@ export const updateEvent = async (id, eventData) => {
   }
 };
 
+// B1: register/deregister return either the changed record or one of two
+// "nothing to do" replies, both with status 200:
+//   { "message": "Already registered" }   (register, client already attending)
+//   { "message": "Not registered" }       (deregister, client wasn't attending)
+// The current backend still sends a plain string, so handle that too.
+// Always returns { changed, message } so views don't need to know the shape.
+const NO_CHANGE_MESSAGES = ["Already registered", "Not registered"];
+
+function toRegistrationResult(data, successMessage) {
+  if (data && typeof data === "object" && NO_CHANGE_MESSAGES.includes(data.message)) {
+    return { changed: false, message: data.message };
+  }
+  if (typeof data === "string" && data.trim()) {
+    return { changed: true, message: data };
+  }
+  return { changed: true, message: successMessage };
+}
+
 // API call to PUT add attendee to event
 export const registerAttendee = async (eventId, clientId) => {
   try {
@@ -224,7 +246,7 @@ export const registerAttendee = async (eventId, clientId) => {
         },
       }
     );
-    return response.data;
+    return toRegistrationResult(response.data, "Client registered for event");
   } catch (error) {
     throw error;
   }
@@ -243,7 +265,7 @@ export const deregisterAttendee = async (eventId, clientId) => {
         },
       }
     );
-    return response.data;
+    return toRegistrationResult(response.data, "Client removed from event");
   } catch (error) {
     throw error;
   }

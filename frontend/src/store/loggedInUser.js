@@ -18,6 +18,13 @@ export const useLoggedInUserStore = defineStore({
     isLoggedIn: false
   }),
 
+  // S1: Allowlist check. Only the exact role 'editor' can change data.
+  // Any other value (viewer, a typo, an empty or unknown role) is read-only,
+  // so a new role added on the backend can't accidentally get write access.
+  getters: {
+    isEditor: (state) => state.isLoggedIn && state.role === 'editor'
+  },
+
   actions: {
     // F4: Restore saved login and validate the JWT.
     restoreSession() {
