@@ -1,4 +1,4 @@
-import dataTable from '../components/dataTable.vue'
+
 <!-- This view displays a list of clients. The user can search for clients, and click on a client to redirect to another component to view that client's information -->
 <template>
   <main>
@@ -90,6 +90,7 @@ import dataTable from '../components/dataTable.vue'
 </template>
 
 <script setup>
+import DataTable from '../components/dataTable.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getClients, searchClients } from '../api/api'

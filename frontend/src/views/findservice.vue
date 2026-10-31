@@ -1,4 +1,4 @@
-import dataTable from '../components/dataTable.vue'
+
 <!-- This view shows a list of services. Users can search for services and click on a service to be redirected to another component that displays the service's details -->
 <template>
   <main>
@@ -83,6 +83,7 @@ import dataTable from '../components/dataTable.vue'
 </template>
 
 <script setup>
+import DataTable from '../components/dataTable.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getServices, searchServices } from '../api/api'

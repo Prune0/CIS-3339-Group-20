@@ -1,4 +1,4 @@
-import dataTable from '../components/dataTable.vue'
+
 <!-- This view displays a list of events. Users can search for events, and click on an event to be redirected to another component to view that event's details -->
 <template>
   <main>
@@ -81,6 +81,7 @@ import dataTable from '../components/dataTable.vue'
 </template>
 
 <script setup>
+import DataTable from '../components/dataTable.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getEvents, searchEvents } from '../api/api'
