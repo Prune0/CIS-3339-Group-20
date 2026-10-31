@@ -1,3 +1,4 @@
+import dataTable from '../components/dataTable.vue'
 <!-- This view displays a list of clients. The user can search for clients, and click on a client to redirect to another component to view that client's information -->
 <template>
   <main>
@@ -78,28 +79,11 @@
         No clients match your search.
       </div>
       <div v-else class="flex flex-col col-span-2">
-        <table class="min-w-full shadow-md rounded">
-          <thead class="bg-gray-50 text-xl">
-            <tr>
-              <th class="p-4 text-left">Name</th>
-              <th class="p-4 text-left">Phone number</th>
-              <th class="p-4 text-left">City</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-300">
-            <tr @click="router.push({ name: 'clientdetails', params: { id: client._id } })" v-for="client in clients"
-              :key="client._id" class="cursor-pointer" :class="{ 'hoverRow': hoverId === client._id }"
-              @mouseenter="hoverId = client._id" @mouseleave="hoverId = null">
-              <td class="p-2 text-left">
-                {{ client.firstName + ' ' + client.lastName }}
-              </td>
-              <td class="p-2 text-left">
-                {{ client.phoneNumber.primary }}
-              </td>
-              <td class="p-2 text-left">{{ client.address.city }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <DataTable
+          :columns="columns"
+          :rows="clients"
+          @row-click="(c) => router.push({ name: 'clientdetails', params: { id: c._id } })"
+        />
       </div>
     </div>
   </main>
@@ -119,7 +103,13 @@ const searchBy = ref('')
 const firstName = ref('')
 const lastName = ref('')
 const phoneNumber = ref('')
-const hoverId = ref(null)
+
+
+const columns = [
+  { label: 'Name', key: 'lastName', render: (c) => `${c.firstName} ${c.lastName}` },
+  { label: 'Phone number', key: 'phoneNumber.primary' },
+  { label: 'City', key: 'address.city' }
+]
 
 async function loadData() {
   searchBy.value = ''
