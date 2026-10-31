@@ -19,13 +19,19 @@ pinia.use(({ store }) => {
   store.$router = markRaw(router)
 });
 
-setUnauthorizedHandler(() => {
-  useLoggedInUserStore(pinia).clearSession();
-  router.replace('/login');
-});
-
 //add pinia object to our instance
 app.use(pinia)
+
+const loggedInUser = useLoggedInUserStore(pinia)
+loggedInUser.restoreSession()
+
+setUnauthorizedHandler(() => {
+  loggedInUser.clearSession()
+  if (router.currentRoute.value.name !== 'login') {
+    router.replace({ name: 'login' })
+  }
+})
+
 app.use(router);
 
 const options = {

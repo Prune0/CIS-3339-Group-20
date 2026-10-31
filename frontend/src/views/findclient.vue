@@ -87,7 +87,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-300">
-            <tr @click="$router.push({ name: 'clientdetails', params: { id: client._id } })" v-for="client in clients"
+            <tr @click="router.push({ name: 'clientdetails', params: { id: client._id } })" v-for="client in clients"
               :key="client._id" class="cursor-pointer" :class="{ 'hoverRow': hoverId === client._id }"
               @mouseenter="hoverId = client._id" @mouseleave="hoverId = null">
               <td class="p-2 text-left">
@@ -105,69 +105,45 @@
   </main>
 </template>
 
-<script>
+<script setup>
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { getClients, searchClients } from '../api/api'
-import { computed } from 'vue'
 import { useApi } from '../composables/useApi'
 
-export default {
-  setup() {
-    const request = useApi(() => getClients())
-    return {
-      ...request,
-      clients: computed(() => request.data.value ?? [])
-    }
-  },
-  data() {
-    return {
-      // Parameters for search to occur
-      searchBy: '',
-      firstName: '',
-      lastName: '',
-      phoneNumber: '',
-      // variable stores the ID of the row that the mouse is currently hovering over (to highlight the row red)
-      hoverId: null,
-    }
-  },
-  mounted() {
-    // when component is mounted, load the data -
-    this.loadData()
-  },
-  methods: {
-    // method called when component is mounted
-    async loadData() {
-      // Resets all the variables
-      this.searchBy = ''
-      this.firstName = ''
-      this.lastName = ''
-      this.phoneNumber = ''
+const router = useRouter()
+const request = useApi(getClients)
+const clients = computed(() => request.data.value ?? [])
+const { loading, error, execute } = request
+const searchBy = ref('')
+const firstName = ref('')
+const lastName = ref('')
+const phoneNumber = ref('')
+const hoverId = ref(null)
 
-      // get list of clients
-      await this.execute()
-    },
-    // method called when user searches for clients
-    async handleSubmitForm() {
-      // if user searched by client name
-      if (this.searchBy === 'Client Name') {
-        if (this.firstName || this.lastName) {
-          const query = {
-            searchBy: 'name',
-            firstName: this.firstName,
-            lastName: this.lastName,
-          }
-          await this.execute(() => searchClients(query))
-        }
-        // if user searches by client phone number
-      } else if (this.searchBy === 'Client Number') {
-        if (this.phoneNumber) {
-          const query = {
-            searchBy: 'number',
-            phoneNumber: this.phoneNumber
-          }
-          await this.execute(() => searchClients(query))
-        }
-      }
-    },
-  },
+async function loadData() {
+  searchBy.value = ''
+  firstName.value = ''
+  lastName.value = ''
+  phoneNumber.value = ''
+  await execute()
 }
+
+async function handleSubmitForm() {
+  if (searchBy.value === 'Client Name') {
+    if (!firstName.value && !lastName.value) return
+    await execute(() => searchClients({
+      searchBy: 'name',
+      firstName: firstName.value,
+      lastName: lastName.value
+    }))
+  } else if (searchBy.value === 'Client Number' && phoneNumber.value) {
+    await execute(() => searchClients({
+      searchBy: 'number',
+      phoneNumber: phoneNumber.value
+    }))
+  }
+}
+
+onMounted(loadData)
 </script>

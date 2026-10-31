@@ -12,7 +12,7 @@
           <h1 class="font-bold text-4xl text-red-700 tracking-widest text-center mt-10">
               Events Attendance
           </h1>
-      
+
           <div v-if="loading" class="mt-8 border-l-4 border-red-700 bg-red-50 p-4" role="status">Loading attendance data...</div>
           <div v-else-if="error" class="mt-8 border-l-4 border-red-700 bg-red-50 p-4 text-red-900" role="alert">
             <p>Attendance data could not be loaded: {{ error }}</p>
@@ -78,7 +78,10 @@
             </tbody>
           </table>
           <div v-if="!zipLoading && !zipError && zips.length" class="flex justify-center mt-10">
-            <ZipChart :label="zipLabels" :chart-data="zipChartData"></ZipChart>
+            <ZipChart
+              :label="zipLabels"
+              :chart-data="zipChartData"
+            ></ZipChart>
           </div>
         </div>
       </div>
@@ -86,65 +89,42 @@
   </main>
 </template>
 
-<script>
+<script setup>
+import { computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import AttendanceChart from '../components/barChart.vue'
 import ZipChart from '../components/donutZipChart.vue'
 import { getAttendance, getClientsByZipCode } from '../api/api'
 import { useApi } from '../composables/useApi'
 
-export default {
-  setup() {
-    const attendanceRequest = useApi(getAttendance)
-    const zipRequest = useApi(getClientsByZipCode)
+const router = useRouter()
+const attendanceRequest = useApi(getAttendance)
+const zipRequest = useApi(getClientsByZipCode)
+const recentEvents = computed(() => attendanceRequest.data.value ?? [])
+const zips = computed(() => zipRequest.data.value ?? [])
+const labels = computed(() => recentEvents.value.map(
+  (item) => `${item.name} (${formatDate(item.date)})`
+))
+const chartData = computed(() => recentEvents.value.map((item) => item.attendees.length))
+const zipLabels = computed(() => zips.value.map((item) => item._id))
+const zipChartData = computed(() => zips.value.map((item) => item.count))
+const { loading, error, execute: executeAttendance } = attendanceRequest
+const { loading: zipLoading, error: zipError, execute: executeZip } = zipRequest
 
-    return {
-      attendanceData: attendanceRequest.data,
-      loading: attendanceRequest.loading,
-      error: attendanceRequest.error,
-      executeAttendance: attendanceRequest.execute,
-      zipData: zipRequest.data,
-      zipLoading: zipRequest.loading,
-      zipError: zipRequest.error,
-      executeZip: zipRequest.execute
-    }
-  },
-  components: {
-    AttendanceChart,
-    ZipChart,
-  },
-  mounted() {
-    this.executeAttendance()
-    this.executeZip()
-  },
-  computed: {
-    recentEvents() {
-      return this.attendanceData ?? []
-    },
-    zips() {
-      return this.zipData ?? []
-    },
-    labels() {
-      return this.recentEvents.map((item) => `${item.name} (${this.formatDate(item.date)})`)
-    },
-    chartData() {
-      return this.recentEvents.map((item) => item.attendees.length)
-    },
-    zipLabels() {
-      return this.zips.map((item) => item._id)
-    },
-    zipChartData() {
-      return this.zips.map((item) => item.count)
-    }
-  },
-  methods: {
-    // method called to format the event date
-    formatDate(date) {
-      const isoDate = new Date(date);
-      const year = isoDate.getUTCFullYear();
-      const month = String(isoDate.getUTCMonth() + 1).padStart(2, '0');
-      const day = String(isoDate.getUTCDate()).padStart(2, '0');
-      return `${month}/${day}/${year}`;
-    },
-  }
+function formatDate(date) {
+  const isoDate = new Date(date)
+  const year = isoDate.getUTCFullYear()
+  const month = String(isoDate.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(isoDate.getUTCDate()).padStart(2, '0')
+  return `${month}/${day}/${year}`
 }
+
+function editEvent(id) {
+  router.push({ name: 'eventdetails', params: { id } })
+}
+
+onMounted(() => {
+  executeAttendance()
+  executeZip()
+})
 </script>

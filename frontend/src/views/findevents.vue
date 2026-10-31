@@ -78,7 +78,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-300">
-            <tr @click="$router.push({name: 'eventdetails', params: { id: event._id } })"
+            <tr @click="router.push({ name: 'eventdetails', params: { id: event._id } })"
               v-for="event in events" :key="event._id" class="cursor-pointer"
               :class="{ 'hoverRow': hoverId === event._id }" @mouseenter="hoverId = event._id"
               @mouseleave="hoverId = null">
@@ -93,77 +93,50 @@
   </main>
 </template>
 
-<script>
+<script setup>
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { getEvents, searchEvents } from '../api/api'
-import { computed } from 'vue'
 import { useApi } from '../composables/useApi'
 
-export default {
-  setup() {
-    const request = useApi(() => getEvents())
-    return {
-      ...request,
-      events: computed(() => request.data.value ?? [])
-    }
-  },
-  data() {
-    return {
-      // Parameters for search to occur
-      searchBy: null,
-      name: null,
-      eventDate: null,
-      // variable stores the ID of the row that the mouse is currently hovering over (to highlight the row red)
-      hoverId: null,
-    }
-  },
-  mounted() {
-    // when component is mounted, load the data
-    this.loadData();
-  },
-  methods: {
-    // method called when component is mounted
-    async loadData() {
-      // Resets variables used for search
-      this.searchBy = null
-      this.name = null
-      this.eventDate = null
+const router = useRouter()
+const request = useApi(getEvents)
+const events = computed(() => request.data.value ?? [])
+const { loading, error, execute } = request
+const searchBy = ref(null)
+const name = ref(null)
+const eventDate = ref(null)
+const hoverId = ref(null)
 
-      await this.execute()
-    },
-
-    // method called when user searches for an event
-    async handleSubmitForm() {
-      // if user searches by event name
-      if (this.searchBy === 'Event Name') {
-        if (this.name) {
-          const query = {
-            searchBy: 'name',
-            name: this.name
-          };
-          await this.execute(() => searchEvents(query))
-        }
-        // if user searches by event date
-      } else if (this.searchBy === 'Event Date') {
-        if (this.eventDate) {
-          const eventDate = new Date(this.eventDate);
-          const formattedDate = eventDate.toISOString().substring(0, 10);
-          const query = {
-            searchBy: 'date',
-            eventDate: formattedDate
-          };
-          await this.execute(() => searchEvents(query))
-        }
-      }
-    },
-
-    // method called for each event date so it will be formatted correctly on the table
-    formatDate(date) {
-      const isoDate = new Date(date);
-      const year = isoDate.getUTCFullYear();
-      const month = String(isoDate.getUTCMonth() + 1).padStart(2, '0');
-      const day = String(isoDate.getUTCDate()).padStart(2, '0');
-      return `${month}/${day}/${year}`;
-    },
-  },
+async function loadData() {
+  searchBy.value = null
+  name.value = null
+  eventDate.value = null
+  await execute()
 }
+
+async function handleSubmitForm() {
+  if (searchBy.value === 'Event Name' && name.value) {
+    await execute(() => searchEvents({
+      searchBy: 'name',
+      name: name.value
+    }))
+  } else if (searchBy.value === 'Event Date' && eventDate.value) {
+    const formattedDate = new Date(eventDate.value).toISOString().substring(0, 10)
+    await execute(() => searchEvents({
+      searchBy: 'date',
+      eventDate: formattedDate
+    }))
+  }
+}
+
+function formatDate(date) {
+  const isoDate = new Date(date)
+  const year = isoDate.getUTCFullYear()
+  const month = String(isoDate.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(isoDate.getUTCDate()).padStart(2, '0')
+  return `${month}/${day}/${year}`
+}
+
+onMounted(loadData)
 </script>

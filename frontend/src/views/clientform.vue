@@ -175,86 +175,71 @@
   </main>
 </template>
 
-<script>
+<script setup>
 //import functionalities for validation
+import { reactive } from 'vue'
+import { useRouter } from 'vue-router'
 import useVuelidate from '@vuelidate/core'
 import { required, email, numeric, minLength, maxLength } from '@vuelidate/validators'
 import { createClient } from '../api/api'
 import { useToast } from 'vue-toastification'
 
-//Notifications
 const toast = useToast()
+const router = useRouter()
 
-export default {
-  data() {
-    return {
-      //client variable to hold new client information
-      client: {
-        firstName: null,
-        middleName: null,
-        lastName: null,
-        email: null,
-        phoneNumber: {
-          primary: null,
-          alternate: null
-        },
-        address: {
-          line1: null,
-          line2: null,
-          city: null,
-          county: null,
-          zip: null
-        },
-      }
-    }
+// Composition API reactive state replaces the Options API data and methods.
+const client = reactive({
+  firstName: null,
+  middleName: null,
+  lastName: null,
+  email: null,
+  phoneNumber: {
+    primary: null,
+    alternate: null
   },
-  setup() {
-    // Register Vuelidate
-    const v$ = useVuelidate();
-    return { v$ };
-  },
-  validations() {
-    // validations for client
-    return {
-      client: {
-        firstName: { required },
-        lastName: { required },
-        email: { required, email },
-        phoneNumber: {
-          primary: {
-            required,
-            numeric,
-            minLength: minLength(10),
-            maxLength: maxLength(10),
-          },
-        },
-        address: {
-          city: { required },
-        },
-      },
-    };
-  },
-  methods: {
-    // method called when user submits the form
-    async submitForm() {
-      // Trigger validation
-      this.v$.$validate();
+  address: {
+    line1: null,
+    line2: null,
+    city: null,
+    county: null,
+    zip: null
+  }
+})
 
-      if (this.v$.$error) {
-        // Form is invalid, do not proceed
-        return;
-      }
-
-      try {
-        const response = await createClient(this.client);
-        this.$router.push('/findclient')
-        toast.success(response)
-      } catch (error) {
-        toast.error(error)
+const rules = {
+  client: {
+    firstName: { required },
+    lastName: { required },
+    email: { required, email },
+    phoneNumber: {
+      primary: {
+        required,
+        numeric,
+        minLength: minLength(10),
+        maxLength: maxLength(10)
       }
     },
+    address: {
+      city: { required }
+    }
+  }
+}
+const v$ = useVuelidate(rules, { client })
+
+async function submitForm() {
+  // Validate before creating a client, as in the original form workflow.
+  const isValid = await v$.value.$validate()
+  if (!isValid) {
+    return
+  }
+
+  try {
+    const response = await createClient(client)
+    router.push('/findclient')
+    toast.success(response)
+  } catch (error) {
+    toast.error(error)
   }
 }
 </script>
-
 

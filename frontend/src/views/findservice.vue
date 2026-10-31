@@ -79,7 +79,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-300">
-            <tr @click="$router.push({name: 'servicedetails', params: { id: service._id } })" 
+            <tr @click="router.push({ name: 'servicedetails', params: { id: service._id } })"
             v-for="service in services" :key="service._id" class="cursor-pointer"
               :class="{ 'hoverRow': hoverId === service._id }" @mouseenter="hoverId = service._id"
               @mouseleave="hoverId = null">
@@ -93,67 +93,41 @@
   </main>
 </template>
 
-<script>
+<script setup>
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { getServices, searchServices } from '../api/api'
-import { computed } from 'vue'
 import { useApi } from '../composables/useApi'
 
-export default {
-  setup() {
-    const request = useApi(() => getServices())
-    return {
-      ...request,
-      services: computed(() => request.data.value ?? [])
-    }
-  },
-  data() {
-    return {
-      // Parameters for search to occur
-      searchBy: null,
-      name: null,
-      description: null,
-      // variable stores the ID of the row that the mouse is currently hovering over (to highlight the row red)
-      hoverId: null,
-    }
-  },
-  mounted() {
-    // when component is mounted, load the data
-    this.loadData();
-  },
-  methods: {
-    // method called when component is mounted
-    async loadData() {
-      // Resets all the variables
-      this.searchBy = ''
-      this.name = ''
-      this.description = ''
+const router = useRouter()
+const request = useApi(getServices)
+const services = computed(() => request.data.value ?? [])
+const { loading, error, execute } = request
+const searchBy = ref(null)
+const name = ref(null)
+const description = ref(null)
+const hoverId = ref(null)
 
-      // get list of services
-      await this.execute()
-    },
-
-    // method called when user searches for a service
-    async handleSubmitForm() {
-      // if user searches by service name
-      if (this.searchBy === 'Service Name') {
-        if (this.name) {
-          const query = {
-            searchBy: 'name',
-            name: this.name
-          }
-          await this.execute(() => searchServices(query))
-        }
-        // if user searches by service description
-      } else if (this.searchBy === 'Service Description') {
-        if (this.description) {
-          const query = {
-            searchBy: 'description',
-            description: this.description
-          }
-          await this.execute(() => searchServices(query))
-        }
-      }
-    },
-  },
+async function loadData() {
+  searchBy.value = ''
+  name.value = ''
+  description.value = ''
+  await execute()
 }
+
+async function handleSubmitForm() {
+  if (searchBy.value === 'Service Name' && name.value) {
+    await execute(() => searchServices({
+      searchBy: 'name',
+      name: name.value
+    }))
+  } else if (searchBy.value === 'Service Description' && description.value) {
+    await execute(() => searchServices({
+      searchBy: 'description',
+      description: description.value
+    }))
+  }
+}
+
+onMounted(loadData)
 </script>
