@@ -1,3 +1,4 @@
+import dataTable from '../components/dataTable.vue'
 <!-- This view shows a list of services. Users can search for services and click on a service to be redirected to another component that displays the service's details -->
 <template>
   <main>
@@ -71,23 +72,11 @@
         No services are available for this search.
       </div>
       <div v-else class="flex flex-col col-span-2">
-        <table class="min-w-full shadow-md rounded">
-          <thead class="bg-gray-50 text-xl">
-            <tr>
-              <th class="p-4 text-left" style="width: 25%;">Service Name</th>
-              <th class="p-4 text-left" style="width: 75%;">Service Description</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-300">
-            <tr @click="router.push({ name: 'servicedetails', params: { id: service._id } })"
-            v-for="service in services" :key="service._id" class="cursor-pointer"
-              :class="{ 'hoverRow': hoverId === service._id }" @mouseenter="hoverId = service._id"
-              @mouseleave="hoverId = null">
-              <td class="p-4 text-left">{{ service.name }}</td>
-              <td class="p-4 text-left text-sm">{{ service.description }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <DataTable
+          :columns="columns"
+          :rows="services"
+          @row-click="(s) => router.push({ name: 'servicedetails', params: { id: s._id } })"
+        />
       </div>
     </div>
   </main>
@@ -106,7 +95,12 @@ const { loading, error, execute } = request
 const searchBy = ref(null)
 const name = ref(null)
 const description = ref(null)
-const hoverId = ref(null)
+
+
+const columns = [
+  { label: 'Service Name', key: 'name', width: '25%' },
+  { label: 'Service Description', key: 'description', width: '75%' }
+]
 
 async function loadData() {
   searchBy.value = ''
