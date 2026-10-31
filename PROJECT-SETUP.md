@@ -106,7 +106,14 @@ The backend should report that it is listening on port `3000` and that the datab
 
 ## 4. Configure and start the frontend
 
-Create `frontend/.env` (do not commit it):
+Create `frontend/.env` from the example (do not commit it):
+
+```powershell
+cd D:\CIS-3339-Group-20\frontend
+copy .env.example .env
+```
+
+It should contain:
 
 ```env
 VITE_ROOT_API=http://localhost:3000
@@ -133,10 +140,44 @@ Log in with one of the demo accounts above. The viewer can browse authenticated 
 - The frontend shows create forms based on the user's role, but the backend currently checks authentication rather than enforcing editor-only permissions on write routes. Do not treat UI-only role checks as a production security boundary.
 - Never commit `.env` files, real passwords, JWT secrets, MongoDB credentials, or production tokens.
 
-## Frontend build
+## Frontend build and deployment
 
-From `frontend/`, create a production build with:
+### Build
+
+From `frontend/`, with `frontend/.env` set up as in step 4:
 
 ```powershell
 npm run build
 ```
+
+The build should exit with code 0 and write the static site to `frontend/dist/`.
+
+`VITE_ROOT_API` is baked into `dist/` at build time, so **rebuild after changing it**. To build against a deployed backend, set it to that URL first (no trailing slash), e.g. `VITE_ROOT_API=https://<your-backend-host>`. If it is missing, the app logs `VITE_ROOT_API is not set` in the browser console.
+
+### Check the production build locally
+
+```powershell
+npm run serve      # or: npm run preview
+```
+
+Open `http://localhost:4173`. This serves `dist/`, not the dev server, so use it for the final demo. Refreshing a nested page such as `/clientdetails/<id>` should reload that page instead of returning a 404.
+
+### Deploy to a static host
+
+Point the host at the `frontend` folder, use `npm run build` as the build command and `dist` as the publish directory, and set `VITE_ROOT_API` in the host's environment variables.
+
+| Host | SPA fallback setup |
+| --- | --- |
+| Netlify / Cloudflare Pages | Nothing extra: `frontend/public/_redirects` (`/*  /index.html  200`) is copied into `dist/` on every build. |
+| Render (Static Site) | Add a Rewrite rule: `/*` → `/index.html`. |
+| Vercel | Add a rewrite of `/(.*)` to `/index.html` in `vercel.json`. |
+
+The SPA fallback is needed because the router uses HTML5 history mode: paths like `/clientdetails/123` exist only inside the Vue app, so the host must answer unknown paths with `index.html`.
+
+The backend's `CORS_ORIGIN` must be set to the deployed frontend's exact URL, or the browser will block API calls.
+
+### Cross-platform notes
+
+- Asset imports use forward slashes (`@/assets/...`) so the build works on Windows, macOS, and Linux.
+- Linux build hosts are case-sensitive, so imports must match file names exactly (e.g. `eventDetails.vue`). A build that passes on Windows can still fail on the host.
+- If the app is served from a subfolder, set `base` in `vite.config.js`; the router reads it through `import.meta.env.BASE_URL`.
