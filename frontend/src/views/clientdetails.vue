@@ -158,14 +158,14 @@
         <!--Update Client submit button-->
         <div class="flex justify-between mt-10 mr-20">
           <button @click="submitUpdateClient" type="submit" class="bg-green-700 disabled:opacity-50 text-white rounded"
-            :disabled="user.role === 'viewer'">
+            :disabled="!user.isEditor">
             Update Client
           </button>
         </div>
         <!--Delete Client button-->
         <div class="flex justify-between mt-10 mr-20">
           <button @click="submitDeleteClient" type="submit" class="bg-red-700 disabled:opacity-50 text-white rounded"
-            :disabled="user.role === 'viewer'">
+            :disabled="!user.isEditor">
             Delete Client
           </button>
         </div>
@@ -204,7 +204,7 @@
               <td class="p-2 text-right">
                 <span class="remove-btn-wrapper">
                   <span class="remove-btn text-gray-400 cursor-pointer"
-                    @click.stop="removeClientFromEvent(client._id, event._id)" v-if="hoverId === event._id">X</span>
+                    @click.stop="removeClientFromEvent(client._id, event._id)" v-if="hoverId === event._id && user.isEditor">X</span>
                 </span>
               </td>
             </tr>
@@ -221,7 +221,7 @@
         <div class="flex justify-between">
           <!--button to add client to events-->
           <button @click="addClientToEvent" type="submit" class="mt-5 bg-red-700 disabled:opacity-50 text-white rounded"
-            :disabled="eventsSelected.length === 0 || user.role === 'viewer'">
+            :disabled="eventsSelected.length === 0 || !user.isEditor">
             Add Client to Selected Events
           </button>
         </div>
@@ -299,7 +299,7 @@ onMounted(async () => {
     clientEvents.value = clientEventsResponse
     eventsFiltered.value = nonClientEventsResponse
   } catch (error) {
-    toast.error('error loading data:', error)
+    toast.error(error.message)
   }
 })
 
@@ -315,48 +315,57 @@ function nameWithDate({ name, date }) {
   return `${name} (${formatDate(date)})`
 }
 
-async function removeClientFromEvent(clientId, eventId) {
-  try {
-    const response = await deregisterAttendee(eventId, clientId)
-    toast.success(response)
-  } catch (error) {
-    toast.error(error)
-  }
-
+// B1: refresh both event lists after registering or deregistering
+async function refreshClientEvents() {
   try {
     clientEvents.value = await getClientEvents(route.params.id)
     eventsFiltered.value = await getNonClientEvents(route.params.id)
   } catch (error) {
-    toast.error(error)
+    toast.error(error.message)
   }
 }
 
-async function addClientToEvent() {
+// B1: "Not registered" is a normal reply (status 200), not an error,
+// so it shows as an info toast instead of a success or error.
+async function removeClientFromEvent(clientId, eventId) {
   try {
-    const clientId = client._id
-    const events = eventsSelected.value.map((event) => event._id)
-    const promises = []
-
-    for (const eventId of events) {
-      promises.push(registerAttendee(eventId, clientId))
+    const result = await deregisterAttendee(eventId, clientId)
+    if (result.changed) {
+      toast.success(result.message)
+    } else {
+      toast.info(result.message)
     }
-
-    Promise.all(promises)
-      .then(async () => {
-        try {
-          clientEvents.value = await getClientEvents(route.params.id)
-          eventsFiltered.value = await getNonClientEvents(route.params.id)
-          eventsSelected.value = []
-        } catch (error) {
-          toast.error(error)
-        }
-      })
-      .catch((error) => {
-        toast.error(error)
-      })
   } catch (error) {
-    toast.error(error)
+    // 403 (viewer) or 404 (client/event missing or in another org)
+    toast.error(error.message)
   }
+
+  await refreshClientEvents()
+}
+
+// B1: register for each selected event and report each result.
+// allSettled waits for every request, so one failure doesn't hide the others.
+async function addClientToEvent() {
+  const clientId = client._id
+  const selected = [...eventsSelected.value]
+
+  const results = await Promise.allSettled(
+    selected.map((event) => registerAttendee(event._id, clientId))
+  )
+
+  results.forEach((result, i) => {
+    const eventName = selected[i].name
+    if (result.status === 'rejected') {
+      toast.error(`${eventName}: ${result.reason.message}`)
+    } else if (result.value.changed) {
+      toast.success(`${eventName}: ${result.value.message}`)
+    } else {
+      toast.info(`${eventName}: ${result.value.message}`)
+    }
+  })
+
+  eventsSelected.value = []
+  await refreshClientEvents()
 }
 
 async function submitUpdateClient() {
@@ -371,7 +380,7 @@ async function submitUpdateClient() {
     router.push('/findclient')
     toast.success(response)
   } catch (error) {
-    toast.error(error)
+    toast.error(error.message)
   }
 }
 
@@ -381,7 +390,7 @@ async function submitDeleteClient() {
     toast.success(response)
     router.push('/findclient')
   } catch (error) {
-    toast.error(error)
+    toast.error(error.message)
   }
 }
 </script>
