@@ -1,68 +1,129 @@
-// This pinia store contains state with respect to whether a user is logged in 
+
 import { defineStore } from 'pinia'
 import { useToast } from 'vue-toastification'
-import { loginUser, logoutUser, restoreAuthSession } from '../api/api' // import API calls
-import jwt_decode from 'jwt-decode'; // import JSON Web Token decoder to decode the token into the user's information
+import { loginUser, logoutUser, restoreAuthSession } from '../api/api'
 
-//Notifications
 const toast = useToast()
 
-// Defining a store
+// F4: Keep the expiration timer outside Pinia's reactive state.
+let expirationTimer = null
+const MAX_TIMEOUT_MS = 2147483647
+
 export const useLoggedInUserStore = defineStore({
   id: 'loggedInUser',
-  state: () => {
-    return {
-      name: "",
-      role: "",
-      isLoggedIn: false
-    }
-  },
+
+  state: () => ({
+    name: "",
+    role: "",
+    isLoggedIn: false
+  }),
+
   actions: {
+    // F4: Restore saved login and validate the JWT.
     restoreSession() {
-      const decodedToken = restoreAuthSession();
+      const decodedToken = restoreAuthSession()
+
       if (!decodedToken) {
-        this.clearSessionState();
-        return;
+        this.clearSessionState()
+        return
       }
 
       this.$patch({
         isLoggedIn: true,
         role: decodedToken.role,
         name: decodedToken.name || ''
-      });
+      })
+
+      this.scheduleTokenExpiration(decodedToken.exp)
     },
+
+    // F4: Automatically check the token when it expires.
+    scheduleTokenExpiration(exp) {
+      if (expirationTimer !== null) {
+        clearTimeout(expirationTimer)
+        expirationTimer = null
+      }
+
+      const remainingMs = exp * 1000 - Date.now()
+
+      if (remainingMs <= 0) {
+        this.clearSession()
+        return
+      }
+
+      expirationTimer = setTimeout(() => {
+        // Recheck the saved token, then update login state.
+        this.restoreSession()
+
+        // If the session expired while viewing a protected
+        // page, return the user to the login screen.
+        if (
+          !this.isLoggedIn &&
+          this.$router.currentRoute.value.meta.requiresAuth
+        ) {
+          this.$router.replace({
+            name: 'login',
+            query: {
+              redirect: this.$router.currentRoute.value.fullPath
+            }
+          })
+        }
+      }, Math.min(remainingMs, MAX_TIMEOUT_MS))
+    },
+
     clearSessionState() {
+      // F4: Cancel any existing expiration timer.
+      if (expirationTimer !== null) {
+        clearTimeout(expirationTimer)
+        expirationTimer = null
+      }
+
       this.$patch({
         name: "",
         role: "",
         isLoggedIn: false
-      });
+      })
     },
+
     clearSession() {
-      logoutUser();
-      this.clearSessionState();
+      logoutUser()
+      this.clearSessionState()
     },
+
     async login(username, password) {
       try {
-        const token = await loginUser(username, password);
-        // Get the user's name and role from the JWT token
-        const decodedToken = jwt_decode(token);
-        this.$patch({
-          isLoggedIn: true,
-          role: decodedToken.role,
-          name: decodedToken.name
-        });
-        this.$router.push("/");
-        toast.success("Login Sucessful!")
+        await loginUser(username, password)
 
-      } catch ( error ) {
+        // F4: Use the same JWT validation for new logins
+        // and restored sessions.
+        this.restoreSession()
+
+        if (!this.isLoggedIn) {
+          throw new Error("Login token is invalid or expired")
+        }
+
+        // F4: Return to the originally requested page.
+        const redirect = this.$router.currentRoute.value.query.redirect
+
+        const destination =
+          typeof redirect === 'string' &&
+          redirect.startsWith('/') &&
+          !redirect.startsWith('//')
+            ? redirect
+            : '/'
+
+        await this.$router.push(destination)
+        toast.success("Login Successful!")
+
+      } catch (error) {
         toast.error(error.message)
       }
     },
+
     logout() {
-      this.clearSession();
-      this.$router.push("/");
+      this.clearSession()
+      this.$router.push("/")
       toast.info("You have been logged out!")
     }
-  },
-});
+  }
+})
