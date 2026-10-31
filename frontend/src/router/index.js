@@ -73,14 +73,20 @@ const router = createRouter({
   routes
 })
 
-// protecting the routes
+// F4: Protect authenticated routes and check JWT expiration.
+// Refresh the session before entering a protected page so an
+// expired or missing token cannot grant access.
 router.beforeEach((to) => {
   const store = useLoggedInUserStore()
-  if (to.meta.requiresAuth && !store.isLoggedIn) {
-    return {
-      path: '/login',
-      // save the location we were at to come back later
-      query: { redirect: to.fullPath },
+
+  if (to.meta.requiresAuth) {
+    store.restoreSession()
+
+    if (!store.isLoggedIn) {
+      return {
+        name: 'login',
+        query: { redirect: to.fullPath },
+      }
     }
   }
 })
