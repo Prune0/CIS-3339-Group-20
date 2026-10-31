@@ -1,3 +1,4 @@
+import dataTable from '../components/dataTable.vue'
 <!-- This view displays a list of events. Users can search for events, and click on an event to be redirected to another component to view that event's details -->
 <template>
   <main>
@@ -69,25 +70,11 @@
         No events match the selected search.
       </div>
       <div v-else class="flex flex-col col-span-2">
-        <table class="min-w-full shadow-md rounded">
-          <thead class="bg-gray-50 text-xl">
-            <tr>
-              <th class="p-4 text-left">Event Name</th>
-              <th class="p-4 text-left">Event Date</th>
-              <th class="p-4 text-left">Event Address</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-300">
-            <tr @click="router.push({ name: 'eventdetails', params: { id: event._id } })"
-              v-for="event in events" :key="event._id" class="cursor-pointer"
-              :class="{ 'hoverRow': hoverId === event._id }" @mouseenter="hoverId = event._id"
-              @mouseleave="hoverId = null">
-              <td class="p-2 text-left">{{ event.name }}</td>
-              <td class="p-2 text-left">{{ formatDate(event.date) }}</td>
-              <td class="p-2 text-left">{{ event.address.line1 }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <DataTable
+          :columns="columns"
+          :rows="events"
+          @row-click="(e) => router.push({ name: 'eventdetails', params: { id: e._id } })"
+        />
       </div>
     </div>
   </main>
@@ -106,7 +93,13 @@ const { loading, error, execute } = request
 const searchBy = ref(null)
 const name = ref(null)
 const eventDate = ref(null)
-const hoverId = ref(null)
+
+
+const columns = [
+  { label: 'Event Name', key: 'name' },
+  { label: 'Event Date', key: 'date', render: (e) => formatDate(e.date) },
+  { label: 'Event Address', key: 'address.line1' }
+]
 
 async function loadData() {
   searchBy.value = null
