@@ -5,7 +5,8 @@
     <div id="_container" class="min-h-screen">
       <header class="w-full">
         <section class="text-center">
-          <img class="m-auto" src="@\assets\DanPersona.svg" />
+          <!-- D2: forward slashes so the import resolves on macOS/Linux build hosts, not just Windows -->
+          <img class="m-auto" src="@/assets/DanPersona.svg" alt="Data Platform logo" />
         </section>
         <!--Navigation bar-->
         <nav class="mt-10">

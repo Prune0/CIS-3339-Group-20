@@ -3,9 +3,16 @@
 import axios from "axios";
 import jwt_decode from "jwt-decode";
 
+// D2: the backend URL comes only from VITE_ROOT_API (set in frontend/.env before building).
+// Vite bakes this value into dist/ at build time, so there is no hard-coded localhost here.
+const ROOT_API = import.meta.env.VITE_ROOT_API;
+if (!ROOT_API) {
+  console.error("VITE_ROOT_API is not set. Copy frontend/.env.example to frontend/.env and rebuild.");
+}
+
 // Create HTTP client with the base URL, and specify that the data sent in the request body is JSON
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_ROOT_API,
+  baseURL: ROOT_API,
   headers: {
     "Content-Type": "application/json",
   },
