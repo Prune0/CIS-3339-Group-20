@@ -136,14 +136,14 @@
         <!--Update Event button-->
         <div class="flex justify-between mt-10 mr-20">
           <button @click="submitEventUpdate" type="submit" class="bg-green-700 disabled:opacity-50 text-white rounded"
-            :disabled="user.role === 'viewer'">
+            :disabled="!user.isEditor">
             Update Event
           </button>
         </div>
         <!--Delete Event button-->
         <div class="flex justify-between mt-10 mr-20">
           <button @click="submitDeleteEvent" type="submit" class="bg-red-700  disabled:opacity-50 text-white rounded"
-            :disabled="user.role === 'viewer'">
+            :disabled="!user.isEditor">
             Delete Event
           </button>
           <!--Go back button-->
@@ -255,7 +255,7 @@ onMounted(async () => {
     clients.value = clientsResponse
     services.value = servicesResponse
   } catch (error) {
-    toast.error('error loading data', error)
+    toast.error(error.message)
   }
 })
 
@@ -271,7 +271,7 @@ async function submitEventUpdate() {
     toast.success(response)
     router.push('/findevents')
   } catch (error) {
-    toast.error('error updating event', error)
+    toast.error(error.message)
   }
 }
 
@@ -285,7 +285,7 @@ async function submitDeleteEvent() {
     toast.success(response)
     router.push('/findevents')
   } catch (error) {
-    toast.error(error)
+    toast.error(error.message)
   }
 }
 </script>

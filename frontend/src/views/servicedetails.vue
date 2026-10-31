@@ -62,7 +62,7 @@
           <div class="flex justify-between mt-10 mr-20">
             <div class="flex justify-between mt-10 mr-25">
               <button @click="submitServiceUpdate" type="submit" class="bg-green-700 disabled:opacity-50 text-white rounded"
-                :disabled="user.role === 'viewer'">
+                :disabled="!user.isEditor">
                 Update Service
               </button>
             </div>
@@ -70,7 +70,7 @@
           <!--Delete Service button-->
           <div class="flex justify-between mt-20 mr-20">
             <button @click="submitDeleteService" type="submit" class="bg-red-700 disabled:opacity-50 text-white rounded"
-              :disabled="user.role === 'viewer'">
+              :disabled="!user.isEditor">
               Delete Service
             </button>
           </div>
@@ -154,7 +154,7 @@ onMounted(async () => {
     Object.assign(service, serviceResponse)
     events.value = eventsResponse
   } catch (error) {
-    toast.error(error)
+    toast.error(error.message)
   }
 })
 
@@ -178,7 +178,7 @@ async function submitServiceUpdate() {
     router.push('/findservice')
     toast.success(response)
   } catch (error) {
-    toast.error('error updating service', error)
+    toast.error(error.message)
   }
 }
 
@@ -192,7 +192,7 @@ async function submitDeleteService() {
     toast.success(response)
     router.push('/findservice')
   } catch (error) {
-    toast.error(error)
+    toast.error(error.message)
   }
 }
 </script>
