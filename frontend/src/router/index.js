@@ -47,7 +47,7 @@ const routes = [
     path: '/eventdetails/:id',
     name: 'eventdetails',
     meta: { requiresAuth: true },
-    component: () => import('../views/eventdetails.vue')
+    component: () => import('../views/eventDetails.vue')
   },
   {
     path: '/serviceform',
@@ -69,7 +69,8 @@ const routes = [
   }
 ]
 const router = createRouter({
-  history: createWebHistory(),
+  // D2: use Vite's base path so the router works if the app is deployed under a subfolder
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes
 })
 
